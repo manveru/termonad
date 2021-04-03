@@ -78,6 +78,7 @@ import GI.Gtk
   , widgetSetHexpand
   , widgetShow
   , windowSetFocus
+  , windowSetTitle
   , windowSetTransientFor
   )
 import GI.Pango (EllipsizeMode(EllipsizeModeMiddle), FontDescription)
@@ -108,6 +109,7 @@ import Termonad.Lenses
   , lensTMNotebookTabTermContainer
   , lensTMNotebookTabs
   , lensTMStateApp
+  , lensTMStateAppWin
   , lensTMStateConfig
   , lensTMStateNotebook
   , lensTerm
@@ -255,6 +257,16 @@ relabelTab notebook label scrolledWin term' = do
   maybeTitle <- terminalGetWindowTitle term'
   let labelText = computeTabLabel (fromIntegral tabNum) maybeTitle
   labelSetLabel label labelText
+
+relabelWin :: TMState -> Terminal -> IO ()
+relabelWin mvarTMState vteTerm = do
+  maybeTitle <- terminalGetWindowTitle vteTerm
+  let title = fromMaybe "shell" maybeTitle
+
+  tmState <- readMVar mvarTMState
+  let win = tmState ^. lensTMStateAppWin
+
+  windowSetTitle win title
 
 showScrollbarToPolicy :: ShowScrollbar -> PolicyType
 showScrollbarToPolicy ShowScrollbarNever = PolicyTypeNever
@@ -466,6 +478,7 @@ createTerm handleKeyPress mvarTMState = do
   -- Connect callbacks
   void $ onButtonClicked tabCloseButton $ termClose notebookTab mvarTMState
   void $ onTerminalWindowTitleChanged vteTerm $ do
+    relabelWin mvarTMState vteTerm
     TMState{tmStateNotebook} <- readMVar mvarTMState
     let notebook = tmNotebook tmStateNotebook
     relabelTab notebook tabLabel scrolledWin vteTerm
